@@ -906,9 +906,13 @@ def get_admin_dashboard():
 
         [InlineKeyboardButton(text=f"🎁 Заявки на подарки ({pending_claims})", callback_data="admin_claims")],
 
-        [InlineKeyboardButton(text="🏆 Топ донатеров", callback_data="admin_top_donors"), InlineKeyboardButton(text="🧾 Платежи", callback_data="admin_payments")],
+        [InlineKeyboardButton(text="🏆 Топ донатеров", callback_data="admin_top_donors"), 
+      
+        [InlineKeyboardButton(text="🧾 Платежи", callback_data="admin_payments"),
 
-        [InlineKeyboardButton(text="📢 Рассылка игрокам", callback_data="admin_broadcast")],
+        [InlineKeyboardButton(text="📢 Рассылка", callback_data="admin_broadcast"),
+
+        [InlineKeyboardButton(text="💾 Скачать базу", callback_data="admin_backup"), 
 
         [InlineKeyboardButton(text="🔄 Обновить данные", callback_data="admin_refresh")]
 
@@ -1533,7 +1537,55 @@ async def main():
  
 
  
+@dp.callback_query(F.data == "admin_backup")
 
+async def cb_admin_backup(call: types.CallbackQuery):
+
+    if call.from_user.id != ADMIN_ID:
+
+        return
+
+    from aiogram.types import FSInputFile
+
+    db.commit()
+
+    await call.message.answer_document(
+
+        document=FSInputFile("game_v2.db"),
+
+        caption="💾 <b>Резервная копия базы данных.</b>\nЧтобы восстановить прогресс после обновления, просто отправьте этот файл обратно боту в личку.",
+
+        parse_mode="HTML"
+
+    )
+
+    await call.answer()
+
+ 
+
+ 
+
+@dp.message(F.document, F.from_user.id == ADMIN_ID)
+
+async def admin_restore_db(message: types.Message):
+
+    global db, cur
+
+    if not message.document.file_name or not message.document.file_name.endswith(".db"):
+
+        return
+
+    db.close()
+
+    file_info = await bot.get_file(message.document.file_id)
+
+    await bot.download_file(file_info.file_path, "game_v2.db")
+
+    db = sqlite3.connect("game_v2.db")
+
+    cur = db.cursor()
+
+    await message.reply("✅ <b>База данных успешно восстановлена!</b> Весь прогресс игроков и статистика вернулись.", parse_mode="HTML")
 if __name__ == "__main__":
 
     asyncio.run(main())
